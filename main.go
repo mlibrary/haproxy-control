@@ -48,13 +48,21 @@ func runInteractive(conn net.Conn) error {
 		done <- err
 	}()
 
+	quit := false
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		if _, err := fmt.Fprintf(conn, "%s\n", scanner.Text()); err != nil {
+		line := scanner.Text()
+		if _, err := fmt.Fprintf(conn, "%s\n", line); err != nil {
+			break
+		}
+		if strings.TrimSpace(line) == "quit" {
+			quit = true
 			break
 		}
 	}
-	conn.Close()
+	if !quit {
+		conn.Close()
+	}
 	return <-done
 }
 

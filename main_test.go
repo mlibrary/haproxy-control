@@ -79,6 +79,61 @@ func TestRunCommand(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveQuit(t *testing.T) {
+	server, client := net.Pipe()
+
+	// Server: expect "prompt timed\n", send a prompt, then receive "quit\n"
+	// and close. The key is that stdin still has data after "quit" — the
+	// function must exit without reading it.
+	go func() {
+		defer server.Close()
+		buf := make([]byte, 128)
+		n, _ := server.Read(buf)
+		if strings.TrimSpace(string(buf[:n])) != "prompt timed" {
+			t.Errorf("expected 'prompt timed', got %q", strings.TrimSpace(string(buf[:n])))
+		}
+		server.Write([]byte("> "))
+
+		n, _ = server.Read(buf)
+		if strings.TrimSpace(string(buf[:n])) != "quit" {
+			t.Errorf("expected 'quit', got %q", strings.TrimSpace(string(buf[:n])))
+		}
+		server.Write([]byte("Bye!\n"))
+	}()
+
+	// Provide fake stdin: "quit\n" followed by more data that must NOT be
+	// read (if it were, the test would hang because no server goroutine is
+	// reading the extra command).
+	stdinR, stdinW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	stdinW.WriteString("quit\n")
+	stdinW.WriteString("extra line that should never be sent\n")
+	stdinW.Close()
+
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
+	origStdin := os.Stdin
+	origStdout := os.Stdout
+	os.Stdin = stdinR
+	os.Stdout = stdoutW
+
+	runInteractive(client)
+
+	os.Stdin = origStdin
+	stdoutW.Close()
+	os.Stdout = origStdout
+	stdinR.Close()
+
+	out, _ := io.ReadAll(stdoutR)
+	if !strings.Contains(string(out), "Bye!") {
+		t.Errorf("output %q does not contain expected text", string(out))
+	}
+}
+
 func TestRunInteractive(t *testing.T) {
 	server, client := net.Pipe()
 
