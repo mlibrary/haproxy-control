@@ -134,6 +134,53 @@ func TestRunInteractiveQuit(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveEOF(t *testing.T) {
+	server, client := net.Pipe()
+
+	// Server: expect "prompt timed\n", send a prompt, then wait for the
+	// client to close the connection (Ctrl-D / stdin EOF path).
+	go func() {
+		defer server.Close()
+		buf := make([]byte, 128)
+		n, _ := server.Read(buf)
+		if strings.TrimSpace(string(buf[:n])) != "prompt timed" {
+			t.Errorf("expected 'prompt timed', got %q", strings.TrimSpace(string(buf[:n])))
+		}
+		server.Write([]byte("> "))
+		// Block until client closes (signals EOF).
+		server.Read(buf)
+	}()
+
+	// Stdin is closed immediately (simulates Ctrl-D with no input).
+	stdinR, stdinW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	stdinW.Close()
+
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
+	origStdin := os.Stdin
+	origStdout := os.Stdout
+	os.Stdin = stdinR
+	os.Stdout = stdoutW
+
+	runErr := runInteractive(client)
+
+	os.Stdin = origStdin
+	stdoutW.Close()
+	os.Stdout = origStdout
+	stdinR.Close()
+
+	io.ReadAll(stdoutR)
+
+	if runErr != nil {
+		t.Errorf("runInteractive returned error on EOF: %v", runErr)
+	}
+}
+
 func TestRunInteractive(t *testing.T) {
 	server, client := net.Pipe()
 

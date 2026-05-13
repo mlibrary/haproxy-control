@@ -62,6 +62,8 @@ func runInteractive(conn net.Conn) error {
 	}
 	if !quit {
 		conn.Close()
+		<-done
+		return nil
 	}
 	return <-done
 }
