@@ -61,6 +61,7 @@ func runInteractive(conn net.Conn) error {
 		}
 	}
 	if !quit {
+		fmt.Fprintln(os.Stdout)
 		conn.Close()
 		<-done
 		return nil

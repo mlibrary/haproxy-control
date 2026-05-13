@@ -174,10 +174,13 @@ func TestRunInteractiveEOF(t *testing.T) {
 	os.Stdout = origStdout
 	stdinR.Close()
 
-	io.ReadAll(stdoutR)
+	out, _ := io.ReadAll(stdoutR)
 
 	if runErr != nil {
 		t.Errorf("runInteractive returned error on EOF: %v", runErr)
+	}
+	if len(out) == 0 || out[len(out)-1] != '\n' {
+		t.Errorf("expected output to end with newline on EOF, got %q", string(out))
 	}
 }
 
