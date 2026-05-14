@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
+	"github.com/spf13/pflag"
 	"io"
 	"net"
 	"os"
@@ -71,11 +71,10 @@ func runInteractive(conn net.Conn) error {
 
 func main() {
 	var socket string
-	flag.StringVar(&socket, "socket", defaultSocket, "socket to connect to (unix path or host:port)")
-	flag.StringVar(&socket, "s", defaultSocket, "socket to connect to (unix path or host:port) (shorthand)")
-	flag.Parse()
+	pflag.StringVarP(&socket, "socket", "s", defaultSocket, "HAProxy API socket")
+	pflag.Parse()
 
-	args := flag.Args()
+	args := pflag.Args()
 
 	conn, err := dialSocket(socket)
 	if err != nil {
