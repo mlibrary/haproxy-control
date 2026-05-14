@@ -1,4 +1,4 @@
-module github.com/rrotter/haproxysh
+module hactl
 
 go 1.24.13
 

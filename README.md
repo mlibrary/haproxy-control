@@ -1,2 +1,2 @@
-# haproxysh
-Minimal wrapper CLI for HAProxy Runtime API
+# hactl
+CLI for HAProxy Runtime API

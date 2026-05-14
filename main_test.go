@@ -15,13 +15,13 @@ import (
 
 func TestDialSocket_UnixPath(t *testing.T) {
 	// Create a temporary Unix socket listener so dialSocket can actually connect.
-	ln, err := net.Listen("unix", "/tmp/haproxysh_test.sock")
+	ln, err := net.Listen("unix", "/tmp/haproxy_test.sock")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
 	defer ln.Close()
 
-	conn, err := dialSocket("/tmp/haproxysh_test.sock")
+	conn, err := dialSocket("/tmp/haproxy_test.sock")
 	if err != nil {
 		t.Fatalf("dialSocket unix: %v", err)
 	}
