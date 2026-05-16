@@ -13,6 +13,9 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// Version is set at build time via -ldflags "-X main.Version=<value>"
+var Version = "DEV"
+
 const defaultSocket = "/run/haproxy/admin.sock"
 
 // dialSocket connects to the given socket address. If the address contains a
@@ -246,7 +249,7 @@ func main() {
 	pflag.StringVarP(&socket, "socket", "s", defaultSocket, "HAProxy API socket")
 	pflag.BoolVarP(&noHeader, "no-header", "H", false, "don't print headers")
 	pflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [-s socket] [-H] [<command>]\n\n", pflag.CommandLine.Name())
+		fmt.Fprintf(os.Stderr, "usage: hactl [-s socket] [-H] [<command>]\n\n")
 		fmt.Fprintf(os.Stderr, "flags:\n")
 		pflag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nhactl commands:\n")
@@ -255,11 +258,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  list backends         list backends\n")
 		fmt.Fprintf(os.Stderr, "  list servers          list servers\n\n")
 		fmt.Fprintf(os.Stderr, "HAProxy API commands:\n")
+		fmt.Fprintf(os.Stderr, "  prompt                start interactive command shell\n")
 		fmt.Fprintf(os.Stderr, "  help [<command>]      list matching or all commands\n\n")
 	}
 	pflag.Parse()
 
 	args := pflag.Args()
+
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stdout, "hactl %s - CLI for HAProxy Runtime API\n\n", Version)
+		pflag.Usage()
+		return
+	}
 
 	conn, err := dialSocket(socket)
 	if err != nil {
@@ -268,7 +278,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	if len(args) > 0 {
+	{
 		var err error
 		switch args[0] {
 		case "health":
@@ -285,21 +295,21 @@ func main() {
 				case "servers", "server", "srv":
 					err = runListServers(conn)
 				default:
-					fmt.Fprintf(os.Stderr, "unknown list subcommand: %s\n", args[1])
+					fmt.Fprintf(os.Stderr, "unknown subcommand: %s %s\n", args[0], args[1])
 					os.Exit(1)
 				}
 			} else {
 				err = runList(conn)
 			}
+		case "prompt", "shell":
+			if err := runInteractive(conn); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
 		default:
 			err = runCommand(conn, args)
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
-	} else {
-		if err := runInteractive(conn); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
