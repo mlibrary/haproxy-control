@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/pflag"
 )
 
@@ -249,17 +250,26 @@ func main() {
 	pflag.StringVarP(&socket, "socket", "s", defaultSocket, "HAProxy API socket")
 	pflag.BoolVarP(&noHeader, "no-header", "H", false, "don't print headers")
 	pflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: hactl [-s socket] [-H] [<command>]\n\n")
-		fmt.Fprintf(os.Stderr, "flags:\n")
+		w := os.Stderr
+		identity := func(s string) string { return s }
+		b, u := identity, identity
+		if isatty.IsTerminal(w.Fd()) && os.Getenv("NO_COLOR") == "" {
+			b = func(s string) string { return "\x1b[1m" + s + "\x1b[0m" }
+			u = func(s string) string { return "\x1b[4m" + s + "\x1b[0m" }
+		}
+
+		fmt.Fprint(w, b("usage:")+" hactl [-s "+u("socket")+"] [-H] ["+u("<command>")+"]\n\n")
+		fmt.Fprint(w, b("flags:\n"))
 		pflag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nhactl commands:\n")
-		fmt.Fprintf(os.Stderr, "  health [filter]       show server health, optionally filter output\n")
-		fmt.Fprintf(os.Stderr, "  list                  list backend/server pairs\n")
-		fmt.Fprintf(os.Stderr, "  list backends         list backends\n")
-		fmt.Fprintf(os.Stderr, "  list servers          list servers\n\n")
-		fmt.Fprintf(os.Stderr, "HAProxy API commands:\n")
-		fmt.Fprintf(os.Stderr, "  prompt                start interactive command shell\n")
-		fmt.Fprintf(os.Stderr, "  help [<command>]      list matching or all commands\n\n")
+		fmt.Fprint(w, "\n")
+		fmt.Fprint(w, b("hactl commands:\n"))
+		fmt.Fprint(w, "  health ["+u("filter")+"]       show server health, optionally filter output\n")
+		fmt.Fprint(w, "  list                  list backend/server pairs\n")
+		fmt.Fprint(w, "  list backends         list backends\n")
+		fmt.Fprint(w, "  list servers          list servers\n\n")
+		fmt.Fprint(w, b("HAProxy API commands:\n"))
+		fmt.Fprint(w, "  prompt                start interactive command shell\n")
+		fmt.Fprint(w, "  help ["+u("<command>")+"]      list matching or all commands\n\n")
 	}
 	pflag.Parse()
 
