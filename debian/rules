@@ -11,5 +11,6 @@ build:
 
 binary:
 	$(MAKE) install DESTDIR=debian/hactl
+	install -Dm644 LICENSE debian/hactl/usr/share/doc/hactl/copyright
 	dh_gencontrol
 	dh_builddeb
