@@ -1,5 +1,6 @@
 NAME    := hactl
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "DEV")
+DEB_VER := $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
 
 GOOS   := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
@@ -37,7 +38,7 @@ deb: debian/changelog
 	DH_VERBOSE=1 dpkg-buildpackage -b
 
 debian/changelog: Makefile
-	printf '%s (%s) bullseye bookworm trixie; urgency=medium\n\n' $(NAME) $(VERSION) > $@
+	printf '%s (%s) bullseye bookworm trixie; urgency=medium\n\n' $(NAME) $(DEB_VER) > $@
 	echo "  * just check github" >> $@
 	printf -- '\n -- University of Michigan Library IT <lit-noreply@umich.edu>  ' >> $@
 	git show --no-patch --format=%cD >> $@
