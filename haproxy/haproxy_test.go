@@ -1,6 +1,7 @@
 package haproxy_test
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -180,6 +181,93 @@ func TestRunListServers_UniqueOnly(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q:\n%s", want, out)
 		}
+	}
+}
+
+func TestRunSetState_DryRun(t *testing.T) {
+	// In dry-run mode only the initial query connection is dialed.
+	calls := 0
+	dial := func() (net.Conn, error) {
+		calls++
+		if calls > 1 {
+			t.Errorf("unexpected dial call #%d in dry-run mode", calls)
+			return nil, fmt.Errorf("unexpected dial call #%d in dry-run mode", calls)
+		}
+		return mockConn(t, "show servers state", sampleServersState), nil
+	}
+
+	out := captureStdout(func() {
+		if err := haproxy.RunSetState(dial, "web1", "ready", true); err != nil {
+			t.Fatalf("RunSetState dry-run: %v", err)
+		}
+	})
+	// web1 appears in both "web" and "api" backends.
+	if !strings.Contains(out, "set server web/web1 state ready") {
+		t.Errorf("missing web/web1 command, got:\n%s", out)
+	}
+	if !strings.Contains(out, "set server api/web1 state ready") {
+		t.Errorf("missing api/web1 command, got:\n%s", out)
+	}
+	if strings.Contains(out, "api1") {
+		t.Errorf("unexpected api1 in output:\n%s", out)
+	}
+}
+
+func TestRunSetState_Execute(t *testing.T) {
+	// web1 matches web/web1 and api/web1 → 1 query + 2 set-server dials.
+	responses := []struct{ wantCmd, reply string }{
+		{"show servers state", sampleServersState},
+		{"set server web/web1 state drain", ""},
+		{"set server api/web1 state drain", ""},
+	}
+	calls := 0
+	dial := func() (net.Conn, error) {
+		if calls >= len(responses) {
+			t.Errorf("unexpected dial call #%d", calls)
+			return nil, fmt.Errorf("unexpected dial call #%d", calls)
+		}
+		r := responses[calls]
+		calls++
+		return mockConn(t, r.wantCmd, r.reply), nil
+	}
+
+	if err := haproxy.RunSetState(dial, "web1", "drain", false); err != nil {
+		t.Fatalf("RunSetState: %v", err)
+	}
+	if calls != 3 {
+		t.Errorf("expected 3 dial calls (1 query + 2 set), got %d", calls)
+	}
+}
+
+func TestRunSetState_NoMatch(t *testing.T) {
+	dial := func() (net.Conn, error) {
+		return mockConn(t, "show servers state", sampleServersState), nil
+	}
+	if err := haproxy.RunSetState(dial, "nonexistent", "maint", false); err != nil {
+		t.Fatalf("RunSetState no-match: %v", err)
+	}
+}
+
+func TestRunSetState_PrintsResponse(t *testing.T) {
+	// api1 appears only in the "api" backend, so exactly one set-server dial.
+	responses := []struct{ wantCmd, reply string }{
+		{"show servers state", sampleServersState},
+		{"set server api/api1 state maint", "No such server.\n"},
+	}
+	calls := 0
+	dial := func() (net.Conn, error) {
+		r := responses[calls]
+		calls++
+		return mockConn(t, r.wantCmd, r.reply), nil
+	}
+
+	out := captureStdout(func() {
+		if err := haproxy.RunSetState(dial, "api1", "maint", false); err != nil {
+			t.Fatalf("RunSetState: %v", err)
+		}
+	})
+	if !strings.Contains(out, "No such server.") {
+		t.Errorf("expected server message in output, got:\n%s", out)
 	}
 }
 

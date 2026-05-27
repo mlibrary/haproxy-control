@@ -56,8 +56,10 @@ func runInteractive(conn net.Conn) error {
 
 func main() {
 	var socket string
+	var dryRun bool
 	pflag.CommandLine.SortFlags = false
 	pflag.StringVarP(&socket, "socket", "s", defaultSocket, "HAProxy API socket")
+	pflag.BoolVarP(&dryRun, "dry-run", "n", false, "print commands without executing them")
 	pflag.Usage = func() {
 		w := os.Stderr
 		identity := func(s string) string { return s }
@@ -75,7 +77,8 @@ func main() {
 		fmt.Fprint(w, "  health ["+u("filter")+"]       show server health, optionally filter output\n")
 		fmt.Fprint(w, "  list                  list backend/server pairs\n")
 		fmt.Fprint(w, "  list backends         list backends\n")
-		fmt.Fprint(w, "  list servers          list servers\n\n")
+		fmt.Fprint(w, "  list servers          list servers\n")
+		fmt.Fprint(w, "  "+u("state")+" [-n] "+u("server")+"     set "+u("state")+" (ready, drain, or maint) on "+u("server")+" for each backend\n\n")
 		fmt.Fprint(w, b("HAProxy API commands:\n"))
 		fmt.Fprint(w, "  prompt                start interactive command shell\n")
 		fmt.Fprint(w, "  help ["+u("<command>")+"]      list matching or all commands\n\n")
@@ -88,6 +91,28 @@ func main() {
 		fmt.Fprintf(os.Stdout, "hactl %s - CLI for HAProxy Runtime API\n\n", Version)
 		pflag.Usage()
 		return
+	}
+
+	dial := func() (net.Conn, error) {
+		return sock.DialSocket(socket)
+	}
+
+	switch args[0] {
+	case "ready", "drain", "maint":
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "usage: hactl %s <server>\n", args[0])
+			os.Exit(1)
+		}
+		if err := haproxy.RunSetState(dial, args[1], args[0], dryRun); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if dryRun {
+		fmt.Fprintf(os.Stderr, "error: --dry-run is only supported by the ready, drain, and maint commands\n")
+		os.Exit(1)
 	}
 
 	conn, err := sock.DialSocket(socket)

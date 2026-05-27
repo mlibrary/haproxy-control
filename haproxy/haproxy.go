@@ -166,6 +166,51 @@ func RunListBackends(conn net.Conn) error {
 	return nil
 }
 
+// RunSetState finds every backend/server pair whose server name matches
+// serverName and issues "set server <backend>/<server> state <state>" for each
+// one. If dryRun is true the commands are printed to stdout instead of sent.
+// Valid state values are "ready", "drain", and "maint".
+// dial is called once for the initial query and once per matching server entry,
+// because HAProxy closes non-interactive connections after each response.
+func RunSetState(dial func() (net.Conn, error), serverName, state string, dryRun bool) error {
+	conn, err := dial()
+	if err != nil {
+		return err
+	}
+	data, err := QuerySocket(conn, []string{"show", "servers", "state"})
+	conn.Close()
+	if err != nil {
+		return err
+	}
+	entries, err := ParseServersState(data)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.Server != serverName {
+			continue
+		}
+		cmd := fmt.Sprintf("set server %s/%s state %s", e.Backend, e.Server, state)
+		if dryRun {
+			fmt.Fprintln(os.Stdout, cmd)
+			continue
+		}
+		c, err := dial()
+		if err != nil {
+			return fmt.Errorf("dialing for %s/%s: %w", e.Backend, e.Server, err)
+		}
+		resp, err := QuerySocket(c, strings.Fields(cmd))
+		c.Close()
+		if err != nil {
+			return fmt.Errorf("%s: %w", cmd, err)
+		}
+		if s := strings.TrimSpace(resp); s != "" {
+			fmt.Fprintln(os.Stdout, s)
+		}
+	}
+	return nil
+}
+
 // RunListServers prints each unique server name found in "show servers state",
 // preserving first-seen order.
 func RunListServers(conn net.Conn) error {
