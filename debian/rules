@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+clean:
+	# remove all intermediate build artifacts, or builds are not reproducible
+	$(MAKE) clean
+	rm -rf debian/hactl
+	rm -f debian/files debian/hactl.substvars
+
+build:
+	$(MAKE) release
+
+binary:
+	$(MAKE) install DESTDIR=debian/hactl
+	dh_gencontrol
+	dh_builddeb

@@ -1,0 +1,9 @@
+Priority: optional
+Build-Depends: build-essential, debhelper-compat (= 13), golang
+Maintainer: University of Michigan Library IT <lit-noreply@umich.edu>
+Source: hactl
+Section: net
+
+Package: hactl
+Architecture: any
+Description: CLI for HAProxy Runtime API
