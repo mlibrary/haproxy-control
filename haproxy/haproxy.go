@@ -113,8 +113,7 @@ func ServerStatus(opState, adminState int) string {
 // RunHealth prints a table of backend/server, status, and weight for every
 // server returned by "show servers state".  If filter is non-empty, only rows
 // whose "backend/server" column contains filter as a substring are printed.
-// If showHeader is false, the header row is suppressed.
-func RunHealth(conn net.Conn, filter string, showHeader bool) error {
+func RunHealth(conn net.Conn, filter string) error {
 	data, err := QuerySocket(conn, []string{"show", "servers", "state"})
 	if err != nil {
 		return err
@@ -124,9 +123,7 @@ func RunHealth(conn net.Conn, filter string, showHeader bool) error {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	if showHeader {
-		fmt.Fprintln(w, "# BACKEND/SERVER\tSTATUS\tWEIGHT")
-	}
+	fmt.Fprintln(w, "# BACKEND/SERVER\tSTATUS\tWEIGHT")
 	for _, e := range entries {
 		name := e.Backend + "/" + e.Server
 		if filter != "" && !strings.Contains(name, filter) {

@@ -56,10 +56,8 @@ func runInteractive(conn net.Conn) error {
 
 func main() {
 	var socket string
-	var noHeader bool
 	pflag.CommandLine.SortFlags = false
 	pflag.StringVarP(&socket, "socket", "s", defaultSocket, "HAProxy API socket")
-	pflag.BoolVarP(&noHeader, "no-header", "H", false, "don't print headers")
 	pflag.Usage = func() {
 		w := os.Stderr
 		identity := func(s string) string { return s }
@@ -69,7 +67,7 @@ func main() {
 			u = func(s string) string { return "\x1b[4m" + s + "\x1b[0m" }
 		}
 
-		fmt.Fprint(w, b("usage:")+" hactl [-s "+u("socket")+"] [-H] ["+u("<command>")+"]\n\n")
+		fmt.Fprint(w, b("usage:")+" hactl [-s "+u("socket")+"] ["+u("<command>")+"]\n\n")
 		fmt.Fprint(w, b("flags:\n"))
 		pflag.PrintDefaults()
 		fmt.Fprint(w, "\n")
@@ -107,7 +105,7 @@ func main() {
 			if len(args) > 1 {
 				filter = args[1]
 			}
-			err = haproxy.RunHealth(conn, filter, !noHeader)
+			err = haproxy.RunHealth(conn, filter)
 		case "list", "ls":
 			if len(args) > 1 {
 				switch args[1] {

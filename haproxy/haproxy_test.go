@@ -90,10 +90,10 @@ func TestServerStatus(t *testing.T) {
 		{0, 0, "DOWN"},
 		{1, 0, "STARTING"},
 		{3, 0, "STOPPING"},
-		{2, 1, "MAINT"}, // FMAINT
-		{2, 2, "MAINT"}, // IMAINT
-		{2, 4, "MAINT"}, // CMAINT
-		{2, 8, "DRAIN"}, // FDRAIN
+		{2, 1, "MAINT"},  // FMAINT
+		{2, 2, "MAINT"},  // IMAINT
+		{2, 4, "MAINT"},  // CMAINT
+		{2, 8, "DRAIN"},  // FDRAIN
 		{2, 16, "DRAIN"}, // IDRAIN
 		{99, 0, "UNKNOWN"},
 	}
@@ -108,7 +108,7 @@ func TestServerStatus(t *testing.T) {
 func TestRunHealth_NoFilter(t *testing.T) {
 	client := mockConn(t, "show servers state", sampleServersState)
 	out := captureStdout(func() {
-		if err := haproxy.RunHealth(client, "", true); err != nil {
+		if err := haproxy.RunHealth(client, ""); err != nil {
 			t.Fatalf("RunHealth: %v", err)
 		}
 	})
@@ -122,7 +122,7 @@ func TestRunHealth_NoFilter(t *testing.T) {
 func TestRunHealth_WithFilter(t *testing.T) {
 	client := mockConn(t, "show servers state", sampleServersState)
 	out := captureStdout(func() {
-		if err := haproxy.RunHealth(client, "web/", true); err != nil {
+		if err := haproxy.RunHealth(client, "web/"); err != nil {
 			t.Fatalf("RunHealth: %v", err)
 		}
 	})
@@ -131,21 +131,6 @@ func TestRunHealth_WithFilter(t *testing.T) {
 	}
 	if strings.Contains(out, "api/") {
 		t.Errorf("api rows should be filtered out, got:\n%s", out)
-	}
-}
-
-func TestRunHealth_NoHeader(t *testing.T) {
-	client := mockConn(t, "show servers state", sampleServersState)
-	out := captureStdout(func() {
-		if err := haproxy.RunHealth(client, "", false); err != nil {
-			t.Fatalf("RunHealth: %v", err)
-		}
-	})
-	if strings.Contains(out, "BACKEND/SERVER") {
-		t.Errorf("header should be suppressed with showHeader=false, got:\n%s", out)
-	}
-	if !strings.Contains(out, "web/web1") {
-		t.Errorf("data rows should still appear, got:\n%s", out)
 	}
 }
 
