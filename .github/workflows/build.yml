@@ -11,16 +11,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        image:
+        - debian:13
         host:
         - ubuntu-24.04-arm
         - ubuntu-24.04
     runs-on: ${{ matrix.host }}
+    container:
+      image: ${{ matrix.image }}
     steps:
     - name: Install build dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install --yes --no-install-recommends build-essential debhelper-compat golang
+        apt-get update
+        apt-get install --yes --no-install-recommends build-essential debhelper-compat golang
+        apt-get install --yes --no-install-recommends ca-certificates git
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - name: git config
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
     - run: make deb
     - run: mv ../hactl_* ./
     - run: sed -i '/\.buildinfo$/d' hactl_*.changes
